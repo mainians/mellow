@@ -1,0 +1,36 @@
+name: release
+on:
+  schedule:
+    - cron: "* * * * *"
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check and release
+      run: |
+        Mellow_TAG_URL="https://api.github.com/repos/mellow-io/mellow/releases/latest"
+        Mellow_LATEST_VER=`(curl -sSL ${Mellow_TAG_URL} --connect-timeout 30| grep 'tag_name' | cut -d\" -f4)`
+        if [[ ${Mellow_LATEST_VER} != v* ]]; then
+            Mellow_LATEST_VER=v${Mellow_LATEST_VER}
+        fi
+        DIST_TAGS_URL="https://api.github.com/repos/${{ github.repository }}/tags"
+        DIST_TAG_FOUND=`(curl -sSL ${DIST_TAGS_URL} --connect-timeout 30| grep "\"name\"\: \"${Mellow_LATEST_VER}\"")` || true
+        if [ -z ${DIST_TAG_FOUND} ]; then
+            wget https://github.com/mellow-io/mellow/releases/download/${Mellow_LATEST_VER}/Mellow.Setup.${Mellow_LATEST_VER#?}.exe  > /dev/null
+            wget https://github.com/mellow-io/mellow/releases/download/${Mellow_LATEST_VER}/Mellow-${Mellow_LATEST_VER#?}.dmg  > /dev/null
+            wget https://github.com/mellow-io/mellow/releases/download/${Mellow_LATEST_VER}/Mellow-${Mellow_LATEST_VER#?}.AppImage  > /dev/null
+            wget https://github.com/mellow-io/mellow/archive/${Mellow_LATEST_VER}.zip  > /dev/null
+            wget https://github.com/mellow-io/mellow/archive/${Mellow_LATEST_VER}.tar.gz  > /dev/null
+            wget https://github.com/${{ github.repository }}/raw/master/README.md
+            mkdir -p .github/workflows
+            wget -O .github/workflows/main.yml https://github.com/${{ github.repository }}/raw/master/.github/workflows/main.yml
+            git init
+            git add .
+            git config user.name "Scaleya"
+            git config user.email "61817665+Scaleya@users.noreply.github.com"
+            git commit -m "Version ${Mellow_LATEST_VER}"
+            git tag -a "${Mellow_LATEST_VER}" -m "Version ${Mellow_LATEST_VER}"
+            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+            git push -u --force --follow-tags origin master
+        fi
